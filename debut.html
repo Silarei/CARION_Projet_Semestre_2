@@ -9,8 +9,6 @@
     <body>
         <script type="text/javascript">
 
-            //J'en profite pour m'excuser de la lisibilité du code, j'ai voulu utiliser matter plutôt qu'arcade et c'est partit en steack sur beaucoup de chose après coup :S
-
             class Scene1 extends Phaser.Scene {
                 constructor(){
                     super({key : "Scene1" });
@@ -237,19 +235,6 @@
                     this.cam.setBounds(0, 0, this.map.widthInPixels, this.map.heightInPixels);
                     smoothMoveCameraTowards(this.playerController.matterSprite, this.cam);
 
-                    this.anims.create({
-                        key: 'left',
-                        frames: this.anims.generateFrameNumbers('ship', { start: 0, end: 6 }),
-                        frameRate: 10,
-                        repeat: -1
-                    });
-                    this.anims.create({
-                        key: 'attack',
-                        frames: this.anims.generateFrameNumbers('attack', { start: 0, end: 3 }),
-                        frameRate: 10,
-                        repeat: 0
-                    });
-
                     // Before matter's update, reset the player's count of what surfaces it is touching.
                     this.matter.world.on('beforeupdate', (function (event) {
                         this.playerController.numTouching.left = 0;
@@ -309,10 +294,6 @@
                     this.text.setScrollFactor(0);
                     updateText(this.text);
 
-                    this.HPBar = this.add.sprite(128, 128, 'HPBar', 0);
-                    this.HPBar.setScrollFactor(0);
-
-
 
                     this.input.on('pointerdown', pointer =>  {
 
@@ -354,10 +335,6 @@
 
                     this.matterSprite = this.playerController.matterSprite;
                     this.attackSprite = this.playerController.attackSprite;
-
-                    this.matterSprite.setRotation(Phaser.Math.Angle.Between(this.mouseX, this.mouseY, this.matterSprite.x, this.matterSprite.y) - Math.PI / 2);
-                    this.attackSprite.setRotation(Phaser.Math.Angle.Between(this.mouseX, this.mouseY, this.attackSprite.x, this.attackSprite.y) - Math.PI / 2);
-
 
                     if (this.matterSprite.x > 2200) {
                         this.scene.start('MyScene');
@@ -417,27 +394,27 @@
                         }
                     }
 
-                    var canJump = (time - playerController.lastJumpedAt) > 250;
-                    if (cursors.up.isDown & canJump)
+                    var canJump = (time - this.playerController.lastJumpedAt) > 250;
+                    if (this.cursors.up.isDown && this.canJump)
                     {
-                        if (playerController.blocked.bottom)
+                        if (this.playerController.blocked.bottom)
                         {
-                            matterSprite.setVelocityY(-playerController.speed.jump);
-                            playerController.lastJumpedAt = time;
+                            this.matterSprite.setVelocityY(-this.playerController.speed.jump);
+                            this.playerController.lastJumpedAt = time;
                         }
-                        else if (playerController.blocked.left)
+                        else if (this.playerController.blocked.left)
                         {
                             // Jump up and away from the wall
-                            matterSprite.setVelocityY(-playerController.speed.jump);
-                            matterSprite.setVelocityX(playerController.speed.run);
-                            playerController.lastJumpedAt = time;
+                            this.matterSprite.setVelocityY(-this.playerController.speed.jump);
+                            this.matterSprite.setVelocityX(this.playerController.speed.run);
+                            this.playerController.lastJumpedAt = time;
                         }
-                        else if (playerController.blocked.right)
+                        else if (this.playerController.blocked.right)
                         {
                             // Jump up and away from the wall
-                            matterSprite.setVelocityY(-playerController.speed.jump);
-                            matterSprite.setVelocityX(-playerController.speed.run);
-                            playerController.lastJumpedAt = time;
+                            this.matterSprite.setVelocityY(-this.playerController.speed.jump);
+                            this.matterSprite.setVelocityX(-this.playerController.speed.run);
+                            this.playerController.lastJumpedAt = time;
                         }
                     }
 
