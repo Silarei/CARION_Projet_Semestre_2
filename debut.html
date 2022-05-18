@@ -36,42 +36,7 @@
                     this.immunityTimer = 100;
                     this.granny = true;
                     
-                    var Bullet = new Phaser.Class({
-
-                        Extends: Phaser.GameObjects.Image,
-                        initialize:
-
-                        function Bullet (scene) {
-                            Phaser.GameObjects.Image.call(this, scene, 0, 0, 'ship');
-
-                            this.incX = 0;
-                            this.incY = 0;
-
-                            this.speed = Phaser.Math.GetSpeed(600, 1);
-                        },
-
-                        fire: function (ship, x, y) {
-                            
-                            this.setActive(true);
-                            this.setVisible(true);
-                            this.setPosition(ship.x, ship.y);
-
-                            var angle = Phaser.Math.Angle.Between(x, y, ship.x, ship.y);
-
-                            this.setRotation(angle);
-
-                            this.incX = Math.cos(angle);
-                            this.incY = Math.sin(angle);                            
-                        },
-
-                        update: function (time, delta) {
-                            
-                            this.x -= this.incX * (this.speed * delta);
-                            this.y -= this.incY * (this.speed * delta);
-
-                        }
-
-                    });
+                    
 
                     var SmoothedHorizontalControl = new Phaser.Class({
                     initialize:
@@ -131,12 +96,7 @@
                     },
                 });
 
-                    this.bullets = this.add.group({
-                        classType: Bullet,
-                        maxSize: 50,
-                        runChildUpdate: true
-
-                    });
+                    
                     
                     this.map = this.make.tilemap({ key: 'map' });
                     this.tileset = this.map.addTilesetImage('Tileset_Nightclub');
@@ -319,14 +279,14 @@
                 update (time, delta) {
 
                     if (this.isDown && this.granny == true) {
-                        this.bullet = this.bullets.get();
+                        this.bruh = this.matter.add.sprite( this.playerController.matterSprite.x, this.playerController.matterSprite.y, 'ship');
+                        this.bruh.setVelocityX((this.mouseX - this.playerController.matterSprite.x)/100);
+                        this.bruh.setVelocityY((this.mouseY - this.playerController.matterSprite.y)/50);
+
+                        console.log((this.mouseX - this.playerController.matterSprite.x)/100);
+                        console.log((this.mouseY - this.playerController.matterSprite.y)/50);
+                        
                         this.granny = false;
-
-                        if (this.bullet) {                            
-                            this.bullet.fire(this.playerController.matterSprite, this.mouseX, this.mouseY);
-
-                            this.lastFired = time + 500;
-                        }
                     }
 
                     this.matterSprite = this.playerController.matterSprite;
