@@ -14,13 +14,10 @@
                     super({key : "Scene1" });
                 }
                 preload () {
-                    this.load.spritesheet('ship', 'assets/sprites/pas.png', { frameWidth: 96, frameHeight: 96 });
-                    this.load.spritesheet('attack', 'assets/sprites/Attack.png', { frameWidth: 96, frameHeight: 96 });
+                    this.load.spritesheet('ship', 'assets/sprites/dude.png', { frameWidth: 32, frameHeight: 42 });
                     this.load.image('bullet1', 'assets/sprites/bomb.png');
-                    this.load.image('ennemy', 'assets/sprites/star.png');
                     this.load.tilemapTiledJSON('map', 'assets/Carte_Nightclub.json');
                     this.load.image('Tileset_Nightclub', 'assets/Tileset_Nightclub.png');
-                    this.load.spritesheet('HPBar', 'assets/sprites/HPBar.png', { frameWidth: 254, frameHeight: 254 });
                 }
 
                 create () {
@@ -37,9 +34,7 @@
                     this.smoothedControls;
                     this.smoothedControlsV;
                     this.immunityTimer = 100;
-                    var cat1 = this.matter.world.nextCategory();
-                    var cat2 = this.matter.world.nextCategory();
-                    var cat3 = this.matter.world.nextCategory();
+                    this.granny = true;
                     
                     var Bullet = new Phaser.Class({
 
@@ -47,16 +42,16 @@
                         initialize:
 
                         function Bullet (scene) {
-                            Phaser.GameObjects.Image.call(this, scene, 0, 0, 'bullet1');
+                            Phaser.GameObjects.Image.call(this, scene, 0, 0, 'ship');
 
                             this.incX = 0;
                             this.incY = 0;
-                            this.lifespan = 0;
 
                             this.speed = Phaser.Math.GetSpeed(600, 1);
                         },
 
                         fire: function (ship, x, y) {
+                            
                             this.setActive(true);
                             this.setVisible(true);
                             this.setPosition(ship.x, ship.y);
@@ -66,21 +61,14 @@
                             this.setRotation(angle);
 
                             this.incX = Math.cos(angle);
-                            this.incY = Math.sin(angle);
-
-                            this.lifespan = 150;
+                            this.incY = Math.sin(angle);                            
                         },
 
                         update: function (time, delta) {
-                            this.lifespan -= delta;
-
+                            
                             this.x -= this.incX * (this.speed * delta);
                             this.y -= this.incY * (this.speed * delta);
 
-                            if (this.lifespan <= 0) {
-                                this.setActive(false);
-                                this.setVisible(false);
-                            }
                         }
 
                     });
@@ -154,7 +142,6 @@
                     this.tileset = this.map.addTilesetImage('Tileset_Nightclub');
                     this.groundLayer = this.map.createLayer('Ground', this.tileset, 0, 0);
                     this.layer = this.map.createLayer('Other', this.tileset, 0, 0);
-                    this.enemy = this.matter.add.image(830,1000,'ennemy', 0)
 
                     // Set up the layer to have matter bodies. Any colliding tiles will be given a Matter body.
                     this.map.setCollisionByProperty({ collides: true });
@@ -169,25 +156,21 @@
 
                     // The player is a collection of bodies and sensors
                     this.playerController = {
-                        matterSprite: this.matter.add.sprite(0, 0, 'ship', 0),
-                        attackSprite: this.matter.add.sprite(0, 0, 'attack', 0),
+                        matterSprite: this.matter.add.sprite(0, 0, 'ship', 4),
                         blocked: {
                             left: false,
                             right: false,
-                            bottom: false,
-                            up: false
+                            bottom: false
                         },
                         numTouching: {
                             left: 0,
                             right: 0,
-                            bottom: 0,
-                            up: 0
+                            bottom: 0
                         },
                         sensors: {
                             bottom: null,
                             left: null,
-                            right: null,
-                            up: null
+                            right: null
                         },
                         time: {
                             leftDown: 0,
@@ -195,7 +178,8 @@
                         },
                         lastJumpedAt: 0,
                         speed: {
-                            run: 5
+                            run: 7,
+                            jump : 10
                         }
                     };
 
@@ -218,22 +202,37 @@
                             this.playerController.sensors.right
                         ],
                         friction: 0.01,
-                        maxVelocity: 1,
-                        restitution: 0.1 // Prevent body from sticking against a wall
+                        restitution: 0.05 // Prevent body from sticking against a wall
                     });
 
                     this.playerController.matterSprite
                         .setExistingBody(this.compoundBody)
-                        .setPosition(128, 1088);
-
-                    this.playerController.attackSprite
-                        .setExistingBody(this.compoundBody)
+                        .setFixedRotation()
                         .setPosition(128, 1088);
 
 
                     this.cam = this.cameras.main;
                     this.cam.setBounds(0, 0, this.map.widthInPixels, this.map.heightInPixels);
                     smoothMoveCameraTowards(this.playerController.matterSprite, this.cam);
+
+                    this.anims.create({
+                        key: 'left',
+                        frames: this.anims.generateFrameNumbers('ship', { start: 0, end: 3 }),
+                        frameRate: 10,
+                        repeat: -1
+                    });
+                    this.anims.create({
+                        key: 'right',
+                        frames: this.anims.generateFrameNumbers('ship', { start: 5, end: 8 }),
+                        frameRate: 10,
+                        repeat: -1
+                    });
+                    this.anims.create({
+                        key: 'idle',
+                        frames: this.anims.generateFrameNumbers('ship', { start: 4, end: 4 }),
+                        frameRate: 10,
+                        repeat: -1
+                    });
 
                     // Before matter's update, reset the player's count of what surfaces it is touching.
                     this.matter.world.on('beforeupdate', (function (event) {
@@ -300,7 +299,6 @@
                         this.isDown = true;
                         this.mouseX = pointer.worldX;
                         this.mouseY = pointer.worldY;
-                        this.playerController.attackSprite.anims.play('attack', true);
 
                     });
 
@@ -316,25 +314,22 @@
                         this.isDown = false;
 
                     });
-                    this.playerController.matterSprite.setCollisionCategory(cat2);
-                    this.enemy.setCollisionCategory(cat2);
                 }
 
                 update (time, delta) {
 
-                    if (this.isDown && time > this.lastFired) {
+                    if (this.isDown && this.granny == true) {
                         this.bullet = this.bullets.get();
+                        this.granny = false;
 
                         if (this.bullet) {                            
                             this.bullet.fire(this.playerController.matterSprite, this.mouseX, this.mouseY);
-                            
 
                             this.lastFired = time + 500;
                         }
                     }
 
                     this.matterSprite = this.playerController.matterSprite;
-                    this.attackSprite = this.playerController.attackSprite;
 
                     if (this.matterSprite.x > 2200) {
                         this.scene.start('MyScene');
@@ -346,9 +341,6 @@
                     this.oldVelocityX;
                     this.targetVelocityX;
                     this.newVelocityX;
-                    this.oldVelocityY;
-                    this.targetVelocityY;
-                    this.newVelocityY;
 
                     if (this.cursors.left.isDown && !this.playerController.blocked.left)
                     {
@@ -366,7 +358,7 @@
                     else if (this.cursors.right.isDown && !this.playerController.blocked.right)
                     {
                         this.smoothedControls.moveRight(delta);
-                        this.matterSprite.anims.play('left', true);
+                        this.matterSprite.anims.play('right', true);
 
                         // Lerp the velocity towards the max run using the smoothed controls. This simulates a
                         // player controlled acceleration.
@@ -378,11 +370,8 @@
                     }
                     else
                     {
+                        this.matterSprite.anims.play('idle', false);
                         this.smoothedControls.reset();
-                    }
-
-                    if (!this.cursors.up.isDown && !this.cursors.down.isDown && !this.cursors.left.isDown && !this.cursors.right.isDown) {
-                        this.matterSprite.anims.play('left', false);
                     }
 
                     if (this.spaceKey.isDown) {
@@ -394,7 +383,7 @@
                         }
                     }
 
-                    var canJump = (time - this.playerController.lastJumpedAt) > 250;
+                    this.canJump = (time - this.playerController.lastJumpedAt) > 250;
                     if (this.cursors.up.isDown && this.canJump)
                     {
                         if (this.playerController.blocked.bottom)
@@ -420,24 +409,6 @@
 
                     smoothMoveCameraTowards(this.matterSprite, this.cam, 0.9);
                     updateText(this.text);
-                    if (this.enemy.x == this.matterSprite.x) {
-                        this.enemy.setVelocityX(0)
-                    }
-                    else if (this.enemy.x < this.matterSprite.x) {
-                        this.enemy.setVelocityX(1)
-                    }
-                    else if (this.enemy.x > this.matterSprite.x) {
-                        this.enemy.setVelocityX(-1)
-                    }
-                    if (this.enemy.y == this.matterSprite.y) {
-                        this.enemy.setVelocityY(0)
-                    }
-                    if (this.enemy.y < this.matterSprite.y) {
-                        this.enemy.setVelocityY(1)
-                    }
-                    if (this.enemy.y > this.matterSprite.y && this.enemy.y != this.matterSprite.y) {
-                        this.enemy.setVelocityY(-1)
-                    }
                 }
             }
 
