@@ -97,6 +97,15 @@
                         if (level6Lock && JSON.stringify(this.tile.properties) == '{"Cheat":false,"Level1":false,"Level10":false,"Level11":false,"Level12":false,"Level13":false,"Level14":false,"Level15":false,"Level2":false,"Level3":false,"Level4":false,"Level5":false,"Level6":true,"Level7":false,"Level8":false,"Level9":false}') {
                             this.scene.start('Scene6');
                         }
+                        if (level7Lock && JSON.stringify(this.tile.properties) == '{"Cheat":false,"Level1":false,"Level10":false,"Level11":false,"Level12":false,"Level13":false,"Level14":false,"Level15":false,"Level2":false,"Level3":false,"Level4":false,"Level5":false,"Level6":false,"Level7":true,"Level8":false,"Level9":false}') {
+                            this.scene.start('Scene7');
+                        }
+                        if (level8Lock && JSON.stringify(this.tile.properties) == '{"Cheat":false,"Level1":false,"Level10":false,"Level11":false,"Level12":false,"Level13":false,"Level14":false,"Level15":false,"Level2":false,"Level3":false,"Level4":false,"Level5":false,"Level6":false,"Level7":false,"Level8":true,"Level9":false}') {
+                            this.scene.start('Scene8');
+                        }
+                        if (level9Lock && JSON.stringify(this.tile.properties) == '{"Cheat":false,"Level1":false,"Level10":false,"Level11":false,"Level12":false,"Level13":false,"Level14":false,"Level15":false,"Level2":false,"Level3":false,"Level4":false,"Level5":false,"Level6":false,"Level7":false,"Level8":false,"Level9":true}') {
+                            this.scene.start('Scene9');
+                        }
                         if (JSON.stringify(this.tile.properties) == '{"Cheat":true,"Level1":false,"Level10":false,"Level11":false,"Level12":false,"Level13":false,"Level14":false,"Level15":false,"Level2":false,"Level3":false,"Level4":false,"Level5":false,"Level6":false,"Level7":false,"Level8":false,"Level9":false}') {
                             level2Lock = true;
                             level3Lock = true;
@@ -129,7 +138,7 @@
                     if (level6Lock) {
                         this.locked6.setAlpha(0);
                     }
-                    /*if (level7Lock) {
+                    if (level7Lock) {
                         this.locked7.setAlpha(0);
                     }
                     if (level8Lock) {
@@ -138,7 +147,7 @@
                     if (level9Lock) {
                         this.locked9.setAlpha(0);
                     }
-                    if (level10Lock) {
+                    /*if (level10Lock) {
                         this.locked10.setAlpha(0);
                     }
                     if (level11Lock) {
@@ -2128,6 +2137,7 @@
                     this.load.image('stadium', 'assets/Stadium.png');
                     this.load.image('victoire', 'assets/sprites/Victoire.png');
                     this.load.image('defaite', 'assets/sprites/Defaite.png');
+                    this.load.image('PlatVert', 'assets/sprites/PlateformeVert.png');
                 }
 
                 create () {
@@ -2218,11 +2228,1128 @@
                     });
                     this.text.setScrollFactor(0);
                     this.text.setText([
-                        '           Ce texte est ilisible',
+                        '   Tant va la mémé à l\'eau qu\'à la \n          fin elle se casse.',
                     ]);
 
                     this.map = this.make.tilemap({ key: 'map5' });
                     this.tileset = this.map.addTilesetImage('Level_5');
+                    this.layer = this.map.createLayer('Layer_1', this.tileset, 0, 0);
+
+                    // Set up the layer to have matter bodies. Any colliding tiles will be given a Matter body.
+                    this.map.setCollisionByProperty({ collides: true});
+                    this.matter.world.convertTilemapLayer(this.layer);
+
+                    this.matter.world.setBounds(this.map.widthInPixels, this.map.heightInPixels);
+                    this.matter.world.createDebugGraphic();
+                    this.matter.world.drawDebug = false;
+
+                    this.smoothedControls = new SmoothedHorizontalControl(0.005);
+                    this.smoothedControlsV = new SmoothedVerticalControl(0.0005);
+
+                    // The player is a collection of bodies and sensors
+                    this.playerController = {
+                        matterSprite: this.matter.add.sprite(0, 0, 'ship', 3),
+                        blocked: {
+                            left: false,
+                            right: false,
+                            bottom: false
+                        },
+                        numTouching: {
+                            left: 0,
+                            right: 0,
+                            bottom: 0
+                        },
+                        sensors: {
+                            bottom: null,
+                            left: null,
+                            right: null
+                        },
+                        time: {
+                            leftDown: 0,
+                            rightDown: 0
+                        },
+                        lastJumpedAt: 0,
+                        speed: {
+                            run: 10,
+                            jump : 12
+                        }
+                    };
+
+                    this.M = Phaser.Physics.Matter.Matter;
+                    this.w = this.playerController.matterSprite.width;
+                    this.h = this.playerController.matterSprite.height;
+
+                    // Move the sensor to player center
+                    this.sx = this.w / 2;
+                    this.sy = this.h / 2;
+
+                    // The player's body is going to be a compound body.
+                    this.playerBody = this.M.Bodies.rectangle(this.sx, this.sy, this.w * 0.75, this.h, { chamfer: { radius: 10 } });
+                    this.playerController.sensors.bottom = this.M.Bodies.rectangle(this.sx, this.h, this.sx, 5, { isSensor: true });
+                    this.playerController.sensors.left = this.M.Bodies.rectangle(this.sx - this.w * 0.45, this.sy, 5, this.h * 0.25, { isSensor: true });
+                    this.playerController.sensors.right = this.M.Bodies.rectangle(this.sx + this.w * 0.45, this.sy, 5, this.h * 0.25, { isSensor: true });
+                    this.compoundBody = this.M.Body.create({
+                        parts: [
+                            this.playerBody, this.playerController.sensors.bottom, this.playerController.sensors.left,
+                            this.playerController.sensors.right
+                        ],
+                        label: 'ship',
+                        friction: 0.05,
+                        restitution: 0.01 // Prevent body from sticking against a wall
+                    });
+                    this.compoundBody.label = 'ship';
+
+                    this.playerController.matterSprite
+                        .setExistingBody(this.compoundBody)
+                        .setFixedRotation()
+                        .setPosition(80, 450);
+
+                    
+                    //this.playerController.matterSprite.label = 'ship';
+
+                    this.cam = this.cameras.main;
+                    this.cam.setBounds(0, 0, this.map.widthInPixels, this.map.heightInPixels);
+                    smoothMoveCameraTowards(this.playerController.matterSprite, this.cam);
+
+                    this.anims.create({
+                        key: 'left',
+                        frames: this.anims.generateFrameNumbers('ship', { start: 12, end: 14 }),
+                        frameRate: 5,
+                        repeat: -1
+                    });
+                    this.anims.create({
+                        key: 'right',
+                        frames: this.anims.generateFrameNumbers('ship', { start: 8, end: 11 }),
+                        frameRate: 5,
+                        repeat: -1
+                    });
+                    this.anims.create({
+                        key: 'idle',
+                        frames: this.anims.generateFrameNumbers('ship', { start: 7, end: 7 }),
+                        frameRate: 18,
+                        repeat: -1
+                    });
+                    this.anims.create({
+                        key: 'launchIdle',
+                        frames: this.anims.generateFrameNumbers('ship', { start: 0, end: 3 }),
+                        frameRate: 18,
+                        repeat: -1
+                    });
+                    this.anims.create({
+                        key: 'throw',
+                        frames: this.anims.generateFrameNumbers('ship', { start: 3, end: 6 }),
+                        frameRate: 30,
+                        repeat: 0
+                    });
+                    
+
+                    // Before matter's update, reset the player's count of what surfaces it is touching.
+                    this.matter.world.on('beforeupdate', (function (event) {
+                        this.playerController.numTouching.left = 0;
+                        this.playerController.numTouching.right = 0;
+                        this.playerController.numTouching.bottom = 0;
+                    }).bind(this));
+
+                    // Loop over the active colliding pairs and count the surfaces the player is touching.
+                    this.matter.world.on('collisionactive', (function (event) {
+                        this.playerBody = this.playerController.body;
+                        this.left = this.playerController.sensors.left;
+                        this.right = this.playerController.sensors.right;
+                        this.bottom = this.playerController.sensors.bottom;
+
+                        for (this.i = 0; this.i < event.pairs.length; this.i++)
+                        {
+                            this.bodyA = event.pairs[this.i].bodyA;
+                            this.bodyB = event.pairs[this.i].bodyB;
+
+                            if (this.bodyA === this.playerBody || this.bodyB === this.playerBody)
+                            {
+                                continue;
+                            }
+                            else if (this.bodyA === this.bottom || this.bodyB === this.bottom)
+                            {
+                                // Standing on any surface counts (e.g. jumping off of a non-static crate).
+                                this.playerController.numTouching.bottom += 1;
+                            }
+                            else if ((this.bodyA === this.left && this.bodyB.isStatic) || (this.bodyB === this.left && this.bodyA.isStatic))
+                            {
+                                // Only static objects count since we don't want to be blocked by an object that we
+                                // can push around.
+                                this.playerController.numTouching.left += 1;
+                            }
+                            else if ((this.bodyA === this.right && this.bodyB.isStatic) || (this.bodyB === this.right && this.bodyA.isStatic))
+                            {
+                                this.playerController.numTouching.right += 1;
+                            }
+                        }
+                    }).bind(this));
+                    
+
+                    // Update over, so now we can determine if any direction is blocked
+                    this.matter.world.on('afterupdate', (function (event) {
+                        this.playerController.blocked.right = this.playerController.numTouching.right > 0 ? true : false;
+                        this.playerController.blocked.left = this.playerController.numTouching.left > 0 ? true : false;
+                        this.playerController.blocked.bottom = this.playerController.numTouching.bottom > 0 ? true : false;
+                        this.playerController.blocked.up = this.playerController.numTouching.up > 0 ? true : false;
+                    }).bind(this));
+
+                    this.speedText = this.add.text(32, 820, '', {
+                        fontSize: '64px',
+                        padding: { x: 20, y: 10 },
+                        fill: '#ffffff'
+                    });
+                    this.speedText.setScrollFactor(0);
+                    this.speedText.setAlpha(0)
+
+                    this.loop = this.time.addEvent({delay:1, callback: updateCounter, callbackScope: this, loop: true});
+
+                    this.input.on('pointerdown', pointer =>  {
+
+                        this.isDown = true;
+                        this.mouseX = pointer.worldX;
+                        this.mouseY = pointer.worldY;
+
+                    });
+
+                    this.input.on('pointermove', pointer =>  {
+
+                        this.mouseX = pointer.worldX;
+                        this.mouseY = pointer.worldY;
+
+                    });
+
+                    this.input.on('pointerup', pointer =>  {
+
+                        this.isDown = false;
+
+                    });
+
+                    this.bruh = this.matter.add.sprite(this.playerController.matterSprite.x, this.playerController.matterSprite.y, 'granny', 1, { restitution: 0.3, label: 'granny' });
+                    this.bruh.setPosition(-100, -100);
+                    this.reticle = this.add.image(this.mouseX, this.mouseY, 'bullet1');
+                    this.victoire = this.add.image(896,448, 'victoire');
+                    this.victoire.setAlpha(0);
+                    this.defaite = this.add.image(896,448, 'defaite');
+                    this.defaite.setAlpha(0);
+
+                    this.plat1 = this.matter.add.sprite(400, 100, 'PlatVert');
+                    this.plat1Aller = false;
+                    this.plat2 = this.matter.add.sprite(800, 100, 'PlatVert');
+                    this.plat2Aller = false;
+                    this.plat3 = this.matter.add.sprite(1000, 100, 'PlatVert');
+                    this.plat3Aller = false;
+                    this.plat4 = this.matter.add.sprite(600, 600, 'PlatVert');
+                    this.plat4Aller = false;
+                    this.plat5 = this.matter.add.sprite(1200, 600, 'PlatVert');
+                    this.plat5Aller = false;
+                    this.plat6 = this.matter.add.sprite(900, 600, 'PlatVert');
+                    this.plat6Aller = false;                  
+
+                    this.anims.create({
+                        key: 'memeIdle',
+                        frames: this.anims.generateFrameNumbers('granny', { start: 0, end: 3 }),
+                        frameRate: 18,
+                        repeat: -1
+                    });
+                    
+                }
+
+                update (time, delta) {
+
+                    
+                    this.matterSprite = this.playerController.matterSprite;
+
+                    if (!this.speedCalcul) {
+                        this.reticle.x = this.mouseX;
+                        this.reticle.y = this.mouseY;
+                    }
+
+                    if (this.isDown && !this.speedCalcul && (time - this.timeLaunch) > 200 && this.granny) {
+                        grannySpeed = 6000;
+                        this.speedCalcul = true;
+                        this.speedText.setAlpha(1);
+                        this.timeLaunch = time;
+                    }
+
+                    if (this.speedCalcul && this.granny) {
+                        this.speedText.setText('' + ((grannySpeed + 4000)/100));
+
+                        if (this.isDown && (time - this.timeLaunch) > 200) {
+                            this.stopAnim = true;
+                            this.bruh.speed = Phaser.Math.GetSpeed(grannySpeed, 1);
+                            this.bruh.setPosition(this.playerController.matterSprite.x+36, this.playerController.matterSprite.y-80);
+                            this.angle = Phaser.Math.Angle.Between(this.reticle.x, this.reticle.y, this.playerController.matterSprite.x, this.playerController.matterSprite.y);
+                            this.matterSprite.anims.play('throw', true);
+                            this.bruh.setVelocityX(-this.bruh.speed * Math.cos(this.angle));
+                            this.bruh.setVelocityY(-this.bruh.speed * Math.sin(this.angle));
+                            this.speedText.setAlpha(0);
+                            this.speedCalcul = false;
+                            this.granny = false;
+                            this.timeLaunch = time;
+                        }
+                    }
+
+                    if (this.spaceKey.isDown) {
+                        this.scene.start('Scene5');
+                    }
+
+                    if (this.victory) {
+                        level6Lock = true;
+                        if (this.cursors.up.isDown) {
+                            this.scene.start('Scene5');
+                        }
+                        else if (this.cursors.left.isDown) {
+                            this.scene.start('Level');
+                        }
+                        else if (this.cursors.right.isDown) {
+                            this.scene.start('Scene6');
+                        }
+                    }
+
+                    if (this.defeat) {
+                        if (this.cursors.up.isDown) {
+                            this.scene.start('Scene5');
+                        }
+                        else if (this.cursors.left.isDown) {
+                            this.scene.start('Level');
+                        }
+                    }
+
+                    if (!this.granny) {
+                        this.tile = this.map.getTileAt(this.map.worldToTileX(this.bruh.x), this.map.worldToTileY(this.bruh.y));
+                        if (this.tile != null) {
+                            if (!this.defeat && JSON.stringify(this.tile.properties) == '{"collides":false,"death":false,"end":true}') {
+                                this.victoire.setAlpha(1);
+                                this.victory = true;
+                            }
+                            if (!this.victory && JSON.stringify(this.tile.properties) == '{"collides":false,"death":true,"end":false}') {
+                                this.defaite.setAlpha(1);
+                                this.defeat = true;
+                            }
+                        }
+                        
+                        if ((this.bruh.x - this.matterSprite.x) < 80 && (this.bruh.y - this.matterSprite.y) < 120 && (this.bruh.x - this.matterSprite.x) > -80 && (this.bruh.y - this.matterSprite.y) > -120 && (time - this.timeLaunch) > 800 ) {
+                            this.bruh.setPosition(-200, 920);
+                            this.granny = true;
+                        }
+                    }
+
+                    this.tilePlayer = this.map.getTileAt(this.map.worldToTileX(this.matterSprite.x), this.map.worldToTileY(this.matterSprite.y));
+                    if (this.tilePlayer != null) {
+                        if (!this.victory && JSON.stringify(this.tilePlayer.properties) == '{"collides":false,"death":true,"end":false}') {
+                                this.defaite.setAlpha(1);
+                                this.defeat = true;
+                                if (this.cursors.up.isDown) {
+                                    this.scene.start('Scene5');
+                                }
+                                else if (this.cursors.left.isDown) {
+                                    this.scene.start('Level');
+                                }
+                            }
+                    }
+
+
+                    if (this.plat1Aller&& !this.defeat && !this.victory)    {
+                        if (this.plat1.y > 600) {
+                            this.plat1Aller = false;
+                        }
+                        this.plat1.setVelocityY(2);
+                    }
+                    else if (!this.defeat && !this.defeat && !this.victory) {
+                        if (this.plat1.y < 100) {
+                            this.plat1Aller = true;
+                        }
+                        this.plat1.setVelocityY(-2);
+                    }
+                    else {
+                    }
+
+                    if (this.plat2Aller && !this.defeat && !this.victory)    {
+                        if (this.plat2.y > 600) {
+                            this.plat2Aller = false;
+                        }
+                        this.plat2.setVelocityY(6);
+                    }
+                    else if (!this.defeat && !this.victory) {
+                        if (this.plat2.y < 100) {
+                            this.plat2Aller = true;
+                        }
+                        this.plat2.setVelocityY(-6);
+                    }
+                    else {
+                    }
+
+                    if (this.plat3Aller && !this.defeat && !this.victory)    {
+                        if (this.plat3.y > 600) {
+                            this.plat3Aller = false;
+                        }
+                        this.plat3.setVelocityY(4);
+                    }
+                    else if (!this.defeat && !this.victory) {
+                        if (this.plat3.y < 100) {
+                            this.plat3Aller = true;
+                        }
+                        this.plat3.setVelocityY(-4);
+                    }
+                    else {
+                    }
+
+                    if (this.plat4Aller&& !this.defeat && !this.victory)    {
+                        if (this.plat4.y > 600) {
+                            this.plat4Aller = false;
+                        }
+                        this.plat4.setVelocityY(2);
+                    }
+                    else if (!this.defeat && !this.defeat && !this.victory) {
+                        if (this.plat4.y < 100) {
+                            this.plat4Aller = true;
+                        }
+                        this.plat4.setVelocityY(-2);
+                    }
+                    else {
+                    }
+
+                    if (this.plat5Aller && !this.defeat && !this.victory)    {
+                        if (this.plat5.y > 600) {
+                            this.plat5Aller = false;
+                        }
+                        this.plat5.setVelocityY(6);
+                    }
+                    else if (!this.defeat && !this.victory) {
+                        if (this.plat5.y < 100) {
+                            this.plat5Aller = true;
+                        }
+                        this.plat5.setVelocityY(-6);
+                    }
+                    else {
+                    }
+
+                    if (this.plat6Aller && !this.defeat && !this.victory)    {
+                        if (this.plat6.y > 600) {
+                            this.plat6Aller = false;
+                        }
+                        this.plat6.setVelocityY(4);
+                    }
+                    else if (!this.defeat && !this.victory) {
+                        if (this.plat6.y < 100) {
+                            this.plat6Aller = true;
+                        }
+                        this.plat6.setVelocityY(-4);
+                    }
+                    else {
+                    }
+
+
+                    // Movement
+
+                    this.oldVelocityX;
+                    this.targetVelocityX;
+                    this.newVelocityX;
+
+                    if (this.cursors.left.isDown && !this.playerController.blocked.left && !this.granny && !this.defeat && !this.victory) {
+                        this.smoothedControls.moveLeft(delta);
+                        this.matterSprite.anims.play('left', true);
+                        this.matterSprite.friction = 0.01;
+
+                        // Lerp the velocity towards the max run using the smoothed controls. This simulates a
+                        // player controlled acceleration.
+                        this.oldVelocityX = this.matterSprite.body.velocity.x;
+                        this.targetVelocityX = -this.playerController.speed.run;
+                        this.newVelocityX = Phaser.Math.Linear(this.oldVelocityX, this.targetVelocityX, -this.smoothedControls.value);
+
+                        this.matterSprite.setVelocityX(this.newVelocityX);
+                    }
+                    else if (this.cursors.right.isDown && !this.playerController.blocked.right && !this.granny && !this.defeat && !this.victory)
+                    {
+                        this.smoothedControls.moveRight(delta);
+                        this.matterSprite.anims.play('right', true);
+                        this.matterSprite.friction = 0.01;
+
+                        // Lerp the velocity towards the max run using the smoothed controls. This simulates a
+                        // player controlled acceleration.
+                        this.oldVelocityX = this.matterSprite.body.velocity.x;
+                        this.targetVelocityX = this.playerController.speed.run;
+                        this.newVelocityX = Phaser.Math.Linear(this.oldVelocityX, this.targetVelocityX, this.smoothedControls.value);
+
+                        this.matterSprite.setVelocityX(this.newVelocityX);
+                    }
+                    else if (!this.stopAnim)
+                    {
+                        this.matterSprite.anims.play('launchIdle', true);
+                        this.smoothedControls.reset();
+                    }
+                    else if (this.stopAnim && (time - this.timeLaunch) > 200)
+                    {
+                        this.matterSprite.anims.play('idle', true);
+                        this.smoothedControls.reset();
+                    }
+
+                    this.bruh.anims.play('memeIdle', true);
+
+                    this.canJump = (time - this.playerController.lastJumpedAt) > 250;
+                    if (this.cursors.up.isDown && this.canJump && !this.granny && !this.defeat && !this.victory)
+                    {
+                        if (this.playerController.blocked.bottom)
+                        {
+                            this.matterSprite.setVelocityY(-this.playerController.speed.jump);
+                            this.playerController.lastJumpedAt = time;
+                        }
+                        else if (this.playerController.blocked.left)
+                        {
+                            // Jump up and away from the wall
+                            this.matterSprite.setVelocityY(-this.playerController.speed.jump);
+                            this.matterSprite.setVelocityX(this.playerController.speed.run);
+                            this.playerController.lastJumpedAt = time;
+                        }
+                        else if (this.playerController.blocked.right)
+                        {
+                            // Jump up and away from the wall
+                            this.matterSprite.setVelocityY(-this.playerController.speed.jump);
+                            this.matterSprite.setVelocityX(-this.playerController.speed.run);
+                            this.playerController.lastJumpedAt = time;
+                        }
+                    }
+                    
+                    this.reticle.setRotation((Phaser.Math.Angle.Between(this.mouseX, this.mouseY, this.matterSprite.x, this.matterSprite.y) - Math.PI / 2) -0.4);
+                    smoothMoveCameraTowards(this.matterSprite, this.cam, 0.9);
+                }
+            }
+
+            class Scene6 extends Phaser.Scene {
+                constructor(){
+                    super({key : "Scene6" });
+                }
+                preload () {
+                    this.load.spritesheet('ship', 'assets/sprites/dude.png', { frameWidth: 96, frameHeight: 160 });
+                    this.load.spritesheet('granny', 'assets/sprites/meme.png', { frameWidth: 38, frameHeight: 64 });
+                    this.load.image('bullet1', 'assets/sprites/bomb.png');
+                    this.load.tilemapTiledJSON('map6', 'assets/Level_6.json');
+                    this.load.image('Level_5', 'assets/Level_5.png');
+                    this.load.image('stadium', 'assets/Stadium.png');
+                    this.load.image('victoire', 'assets/sprites/Victoire.png');
+                    this.load.image('defaite', 'assets/sprites/Defaite.png');
+                    this.load.image('PlatHori', 'assets/sprites/PlateformeHori.png');
+                }
+
+                create () {
+                    this.add.image(896,448, 'stadium');
+                    this.cursors = this.input.keyboard.createCursorKeys();
+                    this.speed = Phaser.Math.GetSpeed(300, 1);
+                    this.lastFired = 0;
+                    this.isDown = false;
+                    this.mouseX=0;
+                    this.mouseY=0;
+                    this.spaceKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.SPACE);
+                    this.playerController;
+                    this.text;
+                    this.cam;
+                    this.bullets;
+                    this.smoothedControls;
+                    this.smoothedControlsV;
+                    this.immunityTimer = 100;
+                    this.granny = true;
+                    this.timeLaunch = 0;
+                    this.stopAnim = false;
+                    this.victory = false;
+                    this.defeat = false;
+                    
+                    grannySpeed = 6000;
+
+                    var SmoothedHorizontalControl = new Phaser.Class({
+                    initialize:
+
+                    function SmoothedHorizontalControl (speed)
+                    {
+                        this.msSpeed = speed;
+                        this.value = 0;
+                    },
+
+                    moveLeft: function (delta)
+                    {
+                        if (this.value > 0) { this.reset(); }
+                        this.value -= this.msSpeed * delta;
+                        if (this.value < -0.2) { this.value = -0.2; }
+                    },
+
+                    moveRight: function (delta)
+                    {
+                        if (this.value < 0) { this.reset(); }
+                        this.value += this.msSpeed * delta;
+                        if (this.value > 0.2) { this.value = 0.2; }
+                    },
+
+                    reset: function ()
+                    {
+                        this.value = 0;
+                    }
+                });
+
+                    var SmoothedVerticalControl = new Phaser.Class({
+                    initialize:
+
+                    function SmoothedVerticalControl (speed)
+                    {
+                        this.msSpeed = speed;
+                        this.value = 0;
+                    },
+
+                    moveUp: function (delta)
+                    {
+                        if (this.value < 0) { this.reset(); }
+                        this.value += this.msSpeed * delta;
+                        if (this.value > 0.2) { this.value = 0.2;}
+                    },
+
+                    moveDown: function (delta)
+                    {
+                        if (this.value > 0) { this.reset(); }
+                        this.value -= this.msSpeed * delta;
+                        if (this.value < -0.2) { this.value = -0.2; }
+                    },
+
+                    reset: function ()
+                    {
+                        this.value = 0;
+                    },
+                });
+                    this.text = this.add.text(500, 310, '', {
+                        fontSize: '20px',
+                        padding: { x: 20, y: 10 },
+                        fill: '#ffffff'
+                    });
+                    this.text.setScrollFactor(0);
+                    this.text.setText([
+                        'Mémé qui roule n\'ammase pas mousse',
+                    ]);
+
+                    this.map = this.make.tilemap({ key: 'map6' });
+                    this.tileset = this.map.addTilesetImage('Level_5');
+                    this.layer = this.map.createLayer('Layer_1', this.tileset, 0, 0);
+
+                    // Set up the layer to have matter bodies. Any colliding tiles will be given a Matter body.
+                    this.map.setCollisionByProperty({ collides: true});
+                    this.matter.world.convertTilemapLayer(this.layer);
+
+                    this.matter.world.setBounds(this.map.widthInPixels, this.map.heightInPixels);
+                    this.matter.world.createDebugGraphic();
+                    this.matter.world.drawDebug = false;
+
+                    this.smoothedControls = new SmoothedHorizontalControl(0.005);
+                    this.smoothedControlsV = new SmoothedVerticalControl(0.0005);
+
+                    // The player is a collection of bodies and sensors
+                    this.playerController = {
+                        matterSprite: this.matter.add.sprite(0, 0, 'ship', 3),
+                        blocked: {
+                            left: false,
+                            right: false,
+                            bottom: false
+                        },
+                        numTouching: {
+                            left: 0,
+                            right: 0,
+                            bottom: 0
+                        },
+                        sensors: {
+                            bottom: null,
+                            left: null,
+                            right: null
+                        },
+                        time: {
+                            leftDown: 0,
+                            rightDown: 0
+                        },
+                        lastJumpedAt: 0,
+                        speed: {
+                            run: 10,
+                            jump : 12
+                        }
+                    };
+
+                    this.M = Phaser.Physics.Matter.Matter;
+                    this.w = this.playerController.matterSprite.width;
+                    this.h = this.playerController.matterSprite.height;
+
+                    // Move the sensor to player center
+                    this.sx = this.w / 2;
+                    this.sy = this.h / 2;
+
+                    // The player's body is going to be a compound body.
+                    this.playerBody = this.M.Bodies.rectangle(this.sx, this.sy, this.w * 0.75, this.h, { chamfer: { radius: 10 } });
+                    this.playerController.sensors.bottom = this.M.Bodies.rectangle(this.sx, this.h, this.sx, 5, { isSensor: true });
+                    this.playerController.sensors.left = this.M.Bodies.rectangle(this.sx - this.w * 0.45, this.sy, 5, this.h * 0.25, { isSensor: true });
+                    this.playerController.sensors.right = this.M.Bodies.rectangle(this.sx + this.w * 0.45, this.sy, 5, this.h * 0.25, { isSensor: true });
+                    this.compoundBody = this.M.Body.create({
+                        parts: [
+                            this.playerBody, this.playerController.sensors.bottom, this.playerController.sensors.left,
+                            this.playerController.sensors.right
+                        ],
+                        label: 'ship',
+                        friction: 0.05,
+                        restitution: 0.01 // Prevent body from sticking against a wall
+                    });
+                    this.compoundBody.label = 'ship';
+
+                    this.playerController.matterSprite
+                        .setExistingBody(this.compoundBody)
+                        .setFixedRotation()
+                        .setPosition(896, 450);
+
+                    
+                    //this.playerController.matterSprite.label = 'ship';
+
+                    this.cam = this.cameras.main;
+                    this.cam.setBounds(0, 0, this.map.widthInPixels, this.map.heightInPixels);
+                    smoothMoveCameraTowards(this.playerController.matterSprite, this.cam);
+
+                    this.anims.create({
+                        key: 'left',
+                        frames: this.anims.generateFrameNumbers('ship', { start: 12, end: 14 }),
+                        frameRate: 5,
+                        repeat: -1
+                    });
+                    this.anims.create({
+                        key: 'right',
+                        frames: this.anims.generateFrameNumbers('ship', { start: 8, end: 11 }),
+                        frameRate: 5,
+                        repeat: -1
+                    });
+                    this.anims.create({
+                        key: 'idle',
+                        frames: this.anims.generateFrameNumbers('ship', { start: 7, end: 7 }),
+                        frameRate: 18,
+                        repeat: -1
+                    });
+                    this.anims.create({
+                        key: 'launchIdle',
+                        frames: this.anims.generateFrameNumbers('ship', { start: 0, end: 3 }),
+                        frameRate: 18,
+                        repeat: -1
+                    });
+                    this.anims.create({
+                        key: 'throw',
+                        frames: this.anims.generateFrameNumbers('ship', { start: 3, end: 6 }),
+                        frameRate: 30,
+                        repeat: 0
+                    });
+                    
+
+                    // Before matter's update, reset the player's count of what surfaces it is touching.
+                    this.matter.world.on('beforeupdate', (function (event) {
+                        this.playerController.numTouching.left = 0;
+                        this.playerController.numTouching.right = 0;
+                        this.playerController.numTouching.bottom = 0;
+                    }).bind(this));
+
+                    // Loop over the active colliding pairs and count the surfaces the player is touching.
+                    this.matter.world.on('collisionactive', (function (event) {
+                        this.playerBody = this.playerController.body;
+                        this.left = this.playerController.sensors.left;
+                        this.right = this.playerController.sensors.right;
+                        this.bottom = this.playerController.sensors.bottom;
+
+                        for (this.i = 0; this.i < event.pairs.length; this.i++)
+                        {
+                            this.bodyA = event.pairs[this.i].bodyA;
+                            this.bodyB = event.pairs[this.i].bodyB;
+
+                            if (this.bodyA === this.playerBody || this.bodyB === this.playerBody)
+                            {
+                                continue;
+                            }
+                            else if (this.bodyA === this.bottom || this.bodyB === this.bottom)
+                            {
+                                // Standing on any surface counts (e.g. jumping off of a non-static crate).
+                                this.playerController.numTouching.bottom += 1;
+                            }
+                            else if ((this.bodyA === this.left && this.bodyB.isStatic) || (this.bodyB === this.left && this.bodyA.isStatic))
+                            {
+                                // Only static objects count since we don't want to be blocked by an object that we
+                                // can push around.
+                                this.playerController.numTouching.left += 1;
+                            }
+                            else if ((this.bodyA === this.right && this.bodyB.isStatic) || (this.bodyB === this.right && this.bodyA.isStatic))
+                            {
+                                this.playerController.numTouching.right += 1;
+                            }
+                        }
+                    }).bind(this));
+                    
+
+                    // Update over, so now we can determine if any direction is blocked
+                    this.matter.world.on('afterupdate', (function (event) {
+                        this.playerController.blocked.right = this.playerController.numTouching.right > 0 ? true : false;
+                        this.playerController.blocked.left = this.playerController.numTouching.left > 0 ? true : false;
+                        this.playerController.blocked.bottom = this.playerController.numTouching.bottom > 0 ? true : false;
+                        this.playerController.blocked.up = this.playerController.numTouching.up > 0 ? true : false;
+                    }).bind(this));
+
+                    this.speedText = this.add.text(32, 820, '', {
+                        fontSize: '64px',
+                        padding: { x: 20, y: 10 },
+                        fill: '#ffffff'
+                    });
+                    this.speedText.setScrollFactor(0);
+                    this.speedText.setAlpha(0)
+
+                    this.loop = this.time.addEvent({delay:1, callback: updateCounter, callbackScope: this, loop: true});
+
+                    this.input.on('pointerdown', pointer =>  {
+
+                        this.isDown = true;
+                        this.mouseX = pointer.worldX;
+                        this.mouseY = pointer.worldY;
+
+                    });
+
+                    this.input.on('pointermove', pointer =>  {
+
+                        this.mouseX = pointer.worldX;
+                        this.mouseY = pointer.worldY;
+
+                    });
+
+                    this.input.on('pointerup', pointer =>  {
+
+                        this.isDown = false;
+
+                    });
+
+                    this.bruh = this.matter.add.sprite(this.playerController.matterSprite.x, this.playerController.matterSprite.y, 'granny', 1, { restitution: 0.3, label: 'granny' });
+                    this.bruh.setPosition(-100, -100);
+                    this.reticle = this.add.image(this.mouseX, this.mouseY, 'bullet1');
+                    this.victoire = this.add.image(896,448, 'victoire');
+                    this.victoire.setAlpha(0);
+                    this.defaite = this.add.image(896,448, 'defaite');
+                    this.defaite.setAlpha(0);
+
+                    this.anims.create({
+                        key: 'memeIdle',
+                        frames: this.anims.generateFrameNumbers('granny', { start: 0, end: 3 }),
+                        frameRate: 18,
+                        repeat: -1
+                    });
+
+                    this.plat1 = this.matter.add.sprite(896, 150, 'PlatHori');
+                    this.plat1Aller = true;
+                    this.plat2 = this.matter.add.sprite(300, 300, 'PlatHori');
+                    this.plat3 = this.matter.add.sprite(500, 550, 'PlatHori');
+                    this.plat4 = this.matter.add.sprite(1500, 550, 'PlatHori');
+                    this.plat5 = this.matter.add.sprite(1200, 150, 'PlatHori');
+                    this.plat6 = this.matter.add.sprite(100, 150, 'PlatHori');
+                    this.plat7 = this.matter.add.sprite(200, 550, 'PlatHori');
+                    this.plat8 = this.matter.add.sprite(600, 150, 'PlatHori');
+                    this.plat9 = this.matter.add.sprite(1300, 550, 'PlatHori');
+                    this.plat10 = this.matter.add.sprite(1600, 350, 'PlatHori');
+                }
+
+                update (time, delta) {
+
+                    
+                    this.matterSprite = this.playerController.matterSprite;
+
+                    if (!this.speedCalcul) {
+                        this.reticle.x = this.mouseX;
+                        this.reticle.y = this.mouseY;
+                    }
+
+                    if (this.isDown && !this.speedCalcul && (time - this.timeLaunch) > 200 && this.granny) {
+                        grannySpeed = 6000;
+                        this.speedCalcul = true;
+                        this.speedText.setAlpha(1);
+                        this.timeLaunch = time;
+                    }
+
+                    if (this.speedCalcul && this.granny) {
+                        this.speedText.setText('' + ((grannySpeed + 4000)/100));
+
+                        if (this.isDown && (time - this.timeLaunch) > 200) {
+                            this.stopAnim = true;
+                            this.bruh.speed = Phaser.Math.GetSpeed(grannySpeed, 1);
+                            this.bruh.setPosition(this.playerController.matterSprite.x+36, this.playerController.matterSprite.y-80);
+                            this.angle = Phaser.Math.Angle.Between(this.reticle.x, this.reticle.y, this.playerController.matterSprite.x, this.playerController.matterSprite.y);
+                            this.matterSprite.anims.play('throw', true);
+                            this.bruh.setVelocityX(-this.bruh.speed * Math.cos(this.angle));
+                            this.bruh.setVelocityY(-this.bruh.speed * Math.sin(this.angle));
+                            this.speedText.setAlpha(0);
+                            this.speedCalcul = false;
+                            this.granny = false;
+                            this.timeLaunch = time;
+                        }
+                    }
+
+                    if (this.spaceKey.isDown) {
+                        this.scene.start('Scene6');
+                    }
+
+                    if (this.victory) {
+                        level7Lock = true;
+                        if (this.cursors.up.isDown) {
+                            this.scene.start('Scene6');
+                        }
+                        else if (this.cursors.left.isDown) {
+                            this.scene.start('Level');
+                        }
+                        else if (this.cursors.right.isDown) {
+                            this.scene.start('Scene7');
+                        }
+                    }
+
+                    if (this.defeat) {
+                        if (this.cursors.up.isDown) {
+                            this.scene.start('Scene6');
+                        }
+                        else if (this.cursors.left.isDown) {
+                            this.scene.start('Level');
+                        }
+                    }
+
+                    if (!this.granny) {
+                        this.tile = this.map.getTileAt(this.map.worldToTileX(this.bruh.x), this.map.worldToTileY(this.bruh.y));
+                        if (this.tile != null) {
+                            if (!this.defeat && JSON.stringify(this.tile.properties) == '{"collides":false,"death":false,"end":true}') {
+                                this.victoire.setAlpha(1);
+                                this.victory = true;
+                            }
+                            if (!this.victory && JSON.stringify(this.tile.properties) == '{"collides":false,"death":true,"end":false}') {
+                                this.defaite.setAlpha(1);
+                                this.defeat = true;
+                            }
+                        }
+                        
+                        if ((this.bruh.x - this.matterSprite.x) < 80 && (this.bruh.y - this.matterSprite.y) < 120 && (this.bruh.x - this.matterSprite.x) > -80 && (this.bruh.y - this.matterSprite.y) > -120 && (time - this.timeLaunch) > 800 ) {
+                            this.bruh.setPosition(-200, 920);
+                            this.granny = true;
+                        }
+                    }
+
+                    this.tilePlayer = this.map.getTileAt(this.map.worldToTileX(this.matterSprite.x), this.map.worldToTileY(this.matterSprite.y));
+                    if (this.tilePlayer != null) {
+                        if (!this.victory && JSON.stringify(this.tilePlayer.properties) == '{"collides":false,"death":true,"end":false}') {
+                                this.defaite.setAlpha(1);
+                                this.defeat = true;
+                                if (this.cursors.up.isDown) {
+                                    this.scene.start('Scene6');
+                                }
+                                else if (this.cursors.left.isDown) {
+                                    this.scene.start('Level');
+                                }
+                            }
+                    }
+
+                    if (this.plat1Aller&& !this.defeat && !this.victory)    {
+                        if (this.plat1.y > 400) {
+                            this.plat1Aller = false;
+                        }
+                        this.plat1.setVelocityY(1);
+                    }
+                    else if (!this.defeat && !this.defeat && !this.victory) {
+                        if (this.plat1.y < 150) {
+                            this.plat1Aller = true;
+                        }
+                        this.plat1.setVelocityY(-1);
+                    }
+                    else {
+                    }
+
+                    if (!this.defeat && !this.victory) {
+                        this.plat2.setVelocityY(-0.3);
+                        this.plat3.setVelocityY(-0.3);
+                        this.plat4.setVelocityY(-0.3);
+                        this.plat5.setVelocityY(-0.3);
+                        this.plat6.setVelocityY(-0.3);
+                        this.plat7.setVelocityY(-0.3);
+                        this.plat8.setVelocityY(-0.3);
+                        this.plat9.setVelocityY(-0.3);
+                        this.plat10.setVelocityY(-0.3);
+                    }
+
+
+                    // Movement
+
+                    this.oldVelocityX;
+                    this.targetVelocityX;
+                    this.newVelocityX;
+
+                    if (this.cursors.left.isDown && !this.playerController.blocked.left && !this.granny && !this.defeat && !this.victory) {
+                        this.smoothedControls.moveLeft(delta);
+                        this.matterSprite.anims.play('left', true);
+                        this.matterSprite.friction = 0.01;
+
+                        // Lerp the velocity towards the max run using the smoothed controls. This simulates a
+                        // player controlled acceleration.
+                        this.oldVelocityX = this.matterSprite.body.velocity.x;
+                        this.targetVelocityX = -this.playerController.speed.run;
+                        this.newVelocityX = Phaser.Math.Linear(this.oldVelocityX, this.targetVelocityX, -this.smoothedControls.value);
+
+                        this.matterSprite.setVelocityX(this.newVelocityX);
+                    }
+                    else if (this.cursors.right.isDown && !this.playerController.blocked.right && !this.granny && !this.defeat && !this.victory)
+                    {
+                        this.smoothedControls.moveRight(delta);
+                        this.matterSprite.anims.play('right', true);
+                        this.matterSprite.friction = 0.01;
+
+                        // Lerp the velocity towards the max run using the smoothed controls. This simulates a
+                        // player controlled acceleration.
+                        this.oldVelocityX = this.matterSprite.body.velocity.x;
+                        this.targetVelocityX = this.playerController.speed.run;
+                        this.newVelocityX = Phaser.Math.Linear(this.oldVelocityX, this.targetVelocityX, this.smoothedControls.value);
+
+                        this.matterSprite.setVelocityX(this.newVelocityX);
+                    }
+                    else if (!this.stopAnim)
+                    {
+                        this.matterSprite.anims.play('launchIdle', true);
+                        this.smoothedControls.reset();
+                    }
+                    else if (this.stopAnim && (time - this.timeLaunch) > 200)
+                    {
+                        this.matterSprite.anims.play('idle', true);
+                        this.smoothedControls.reset();
+                    }
+
+                    this.bruh.anims.play('memeIdle', true);
+
+                    this.canJump = (time - this.playerController.lastJumpedAt) > 250;
+                    if (this.cursors.up.isDown && this.canJump && !this.granny && !this.defeat && !this.victory)
+                    {
+                        if (this.playerController.blocked.bottom)
+                        {
+                            this.matterSprite.setVelocityY(-this.playerController.speed.jump);
+                            this.playerController.lastJumpedAt = time;
+                        }
+                        else if (this.playerController.blocked.left)
+                        {
+                            // Jump up and away from the wall
+                            this.matterSprite.setVelocityY(-this.playerController.speed.jump);
+                            this.matterSprite.setVelocityX(this.playerController.speed.run);
+                            this.playerController.lastJumpedAt = time;
+                        }
+                        else if (this.playerController.blocked.right)
+                        {
+                            // Jump up and away from the wall
+                            this.matterSprite.setVelocityY(-this.playerController.speed.jump);
+                            this.matterSprite.setVelocityX(-this.playerController.speed.run);
+                            this.playerController.lastJumpedAt = time;
+                        }
+                    }
+                    
+                    this.reticle.setRotation((Phaser.Math.Angle.Between(this.mouseX, this.mouseY, this.matterSprite.x, this.matterSprite.y) - Math.PI / 2) -0.4);
+                    smoothMoveCameraTowards(this.matterSprite, this.cam, 0.9);
+                }
+            }
+
+            class Scene7 extends Phaser.Scene {
+                constructor(){
+                    super({key : "Scene7" });
+                }
+                preload () {
+                    this.load.spritesheet('ship', 'assets/sprites/dude.png', { frameWidth: 96, frameHeight: 160 });
+                    this.load.spritesheet('granny', 'assets/sprites/meme.png', { frameWidth: 38, frameHeight: 64 });
+                    this.load.image('bullet1', 'assets/sprites/bomb.png');
+                    this.load.tilemapTiledJSON('map7', 'assets/Level_7.json');
+                    this.load.image('Level_1', 'assets/Level_1.png');
+                    this.load.image('stadium', 'assets/Stadium.png');
+                    this.load.image('victoire', 'assets/sprites/Victoire.png');
+                    this.load.image('defaite', 'assets/sprites/Defaite.png');
+                }
+
+                create () {
+                    this.add.image(896,448, 'stadium');
+                    this.cursors = this.input.keyboard.createCursorKeys();
+                    this.speed = Phaser.Math.GetSpeed(300, 1);
+                    this.lastFired = 0;
+                    this.isDown = false;
+                    this.mouseX=0;
+                    this.mouseY=0;
+                    this.spaceKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.SPACE);
+                    this.playerController;
+                    this.text;
+                    this.cam;
+                    this.bullets;
+                    this.smoothedControls;
+                    this.smoothedControlsV;
+                    this.immunityTimer = 100;
+                    this.granny = true;
+                    this.timeLaunch = 0;
+                    this.stopAnim = false;
+                    this.victory = false;
+                    this.defeat = false;
+                    
+                    grannySpeed = 6000;
+
+                    var SmoothedHorizontalControl = new Phaser.Class({
+                    initialize:
+
+                    function SmoothedHorizontalControl (speed)
+                    {
+                        this.msSpeed = speed;
+                        this.value = 0;
+                    },
+
+                    moveLeft: function (delta)
+                    {
+                        if (this.value > 0) { this.reset(); }
+                        this.value -= this.msSpeed * delta;
+                        if (this.value < -0.2) { this.value = -0.2; }
+                    },
+
+                    moveRight: function (delta)
+                    {
+                        if (this.value < 0) { this.reset(); }
+                        this.value += this.msSpeed * delta;
+                        if (this.value > 0.2) { this.value = 0.2; }
+                    },
+
+                    reset: function ()
+                    {
+                        this.value = 0;
+                    }
+                });
+
+                    var SmoothedVerticalControl = new Phaser.Class({
+                    initialize:
+
+                    function SmoothedVerticalControl (speed)
+                    {
+                        this.msSpeed = speed;
+                        this.value = 0;
+                    },
+
+                    moveUp: function (delta)
+                    {
+                        if (this.value < 0) { this.reset(); }
+                        this.value += this.msSpeed * delta;
+                        if (this.value > 0.2) { this.value = 0.2;}
+                    },
+
+                    moveDown: function (delta)
+                    {
+                        if (this.value > 0) { this.reset(); }
+                        this.value -= this.msSpeed * delta;
+                        if (this.value < -0.2) { this.value = -0.2; }
+                    },
+
+                    reset: function ()
+                    {
+                        this.value = 0;
+                    },
+                });
+                    this.text = this.add.text(500, 310, '', {
+                        fontSize: '20px',
+                        padding: { x: 20, y: 10 },
+                        fill: '#ffffff'
+                    });
+                    this.text.setScrollFactor(0);
+                    this.text.setText([
+                        'Bienvenue dans le bac à mémé',
+                        'Balancer mémé dans tout les sens !',
+                        'Espace pour passer aux choses sérieuses.'
+                    ]);
+
+                    this.map = this.make.tilemap({ key: 'map7' });
+                    this.tileset = this.map.addTilesetImage('Level_1');
                     this.layer = this.map.createLayer('Layer_1', this.tileset, 0, 0);
 
                     // Set up the layer to have matter bodies. Any colliding tiles will be given a Matter body.
@@ -2467,25 +3594,26 @@
                     }
 
                     if (this.spaceKey.isDown) {
-                        this.scene.start('Scene5');
+                        level8Lock = true;
+                        this.scene.start('Scene8');
                     }
 
                     if (this.victory) {
-                        level6Lock = true;
+                        level8Lock = true;
                         if (this.cursors.up.isDown) {
-                            this.scene.start('Scene5');
+                            this.scene.start('Scene7');
                         }
                         else if (this.cursors.left.isDown) {
                             this.scene.start('Level');
                         }
                         else if (this.cursors.right.isDown) {
-                            this.scene.start('Scene6');
+                            this.scene.start('Scene8');
                         }
                     }
 
                     if (this.defeat) {
                         if (this.cursors.up.isDown) {
-                            this.scene.start('Scene5');
+                            this.scene.start('Scene7');
                         }
                         else if (this.cursors.left.isDown) {
                             this.scene.start('Level');
@@ -2517,7 +3645,7 @@
                                 this.defaite.setAlpha(1);
                                 this.defeat = true;
                                 if (this.cursors.up.isDown) {
-                                    this.scene.start('Scene5');
+                                    this.scene.start('Scene7');
                                 }
                                 else if (this.cursors.left.isDown) {
                                     this.scene.start('Level');
@@ -2601,16 +3729,502 @@
                 }
             }
 
-            class Scene6 extends Phaser.Scene {
+            class Scene8 extends Phaser.Scene {
                 constructor(){
-                    super({key : "Scene6" });
+                    super({key : "Scene8" });
                 }
                 preload () {
                     this.load.spritesheet('ship', 'assets/sprites/dude.png', { frameWidth: 96, frameHeight: 160 });
                     this.load.spritesheet('granny', 'assets/sprites/meme.png', { frameWidth: 38, frameHeight: 64 });
                     this.load.image('bullet1', 'assets/sprites/bomb.png');
-                    this.load.tilemapTiledJSON('map6', 'assets/Level_6.json');
-                    this.load.image('Level_6', 'assets/Level_6.png');
+                    this.load.tilemapTiledJSON('map8', 'assets/Level_8.json');
+                    this.load.image('Level_8', 'assets/Level_8.png');
+                    this.load.image('stadium', 'assets/Stadium.png');
+                    this.load.image('victoire', 'assets/sprites/Victoire.png');
+                    this.load.image('defaite', 'assets/sprites/Defaite.png');
+                }
+
+                create () {
+                    this.add.image(896,448, 'stadium');
+                    this.cursors = this.input.keyboard.createCursorKeys();
+                    this.speed = Phaser.Math.GetSpeed(300, 1);
+                    this.lastFired = 0;
+                    this.isDown = false;
+                    this.mouseX=0;
+                    this.mouseY=0;
+                    this.spaceKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.SPACE);
+                    this.playerController;
+                    this.text;
+                    this.cam;
+                    this.bullets;
+                    this.smoothedControls;
+                    this.smoothedControlsV;
+                    this.immunityTimer = 100;
+                    this.granny = true;
+                    this.timeLaunch = 0;
+                    this.stopAnim = false;
+                    this.victory = false;
+                    this.defeat = false;
+                    
+                    grannySpeed = 6000;
+
+                    var SmoothedHorizontalControl = new Phaser.Class({
+                    initialize:
+
+                    function SmoothedHorizontalControl (speed)
+                    {
+                        this.msSpeed = speed;
+                        this.value = 0;
+                    },
+
+                    moveLeft: function (delta)
+                    {
+                        if (this.value > 0) { this.reset(); }
+                        this.value -= this.msSpeed * delta;
+                        if (this.value < -0.2) { this.value = -0.2; }
+                    },
+
+                    moveRight: function (delta)
+                    {
+                        if (this.value < 0) { this.reset(); }
+                        this.value += this.msSpeed * delta;
+                        if (this.value > 0.2) { this.value = 0.2; }
+                    },
+
+                    reset: function ()
+                    {
+                        this.value = 0;
+                    }
+                });
+
+                    var SmoothedVerticalControl = new Phaser.Class({
+                    initialize:
+
+                    function SmoothedVerticalControl (speed)
+                    {
+                        this.msSpeed = speed;
+                        this.value = 0;
+                    },
+
+                    moveUp: function (delta)
+                    {
+                        if (this.value < 0) { this.reset(); }
+                        this.value += this.msSpeed * delta;
+                        if (this.value > 0.2) { this.value = 0.2;}
+                    },
+
+                    moveDown: function (delta)
+                    {
+                        if (this.value > 0) { this.reset(); }
+                        this.value -= this.msSpeed * delta;
+                        if (this.value < -0.2) { this.value = -0.2; }
+                    },
+
+                    reset: function ()
+                    {
+                        this.value = 0;
+                    },
+                });
+                    this.text = this.add.text(500, 310, '', {
+                        fontSize: '20px',
+                        padding: { x: 20, y: 10 },
+                        fill: '#ffffff'
+                    });
+                    this.text.setScrollFactor(0);
+                    this.text.setText([
+                        'Une mémé avertie en vaut deux',
+                    ]);
+
+                    this.map = this.make.tilemap({ key: 'map8' });
+                    this.tileset = this.map.addTilesetImage('Level_8');
+                    this.layer = this.map.createLayer('Layer_1', this.tileset, 0, 0);
+
+                    // Set up the layer to have matter bodies. Any colliding tiles will be given a Matter body.
+                    this.map.setCollisionByProperty({ collides: true});
+                    this.matter.world.convertTilemapLayer(this.layer);
+
+                    this.matter.world.setBounds(this.map.widthInPixels, this.map.heightInPixels);
+                    this.matter.world.createDebugGraphic();
+                    this.matter.world.drawDebug = false;
+
+                    this.smoothedControls = new SmoothedHorizontalControl(0.005);
+                    this.smoothedControlsV = new SmoothedVerticalControl(0.0005);
+
+                    // The player is a collection of bodies and sensors
+                    this.playerController = {
+                        matterSprite: this.matter.add.sprite(0, 0, 'ship', 3),
+                        blocked: {
+                            left: false,
+                            right: false,
+                            bottom: false
+                        },
+                        numTouching: {
+                            left: 0,
+                            right: 0,
+                            bottom: 0
+                        },
+                        sensors: {
+                            bottom: null,
+                            left: null,
+                            right: null
+                        },
+                        time: {
+                            leftDown: 0,
+                            rightDown: 0
+                        },
+                        lastJumpedAt: 0,
+                        speed: {
+                            run: 10,
+                            jump : 12
+                        }
+                    };
+
+                    this.M = Phaser.Physics.Matter.Matter;
+                    this.w = this.playerController.matterSprite.width;
+                    this.h = this.playerController.matterSprite.height;
+
+                    // Move the sensor to player center
+                    this.sx = this.w / 2;
+                    this.sy = this.h / 2;
+
+                    // The player's body is going to be a compound body.
+                    this.playerBody = this.M.Bodies.rectangle(this.sx, this.sy, this.w * 0.75, this.h, { chamfer: { radius: 10 } });
+                    this.playerController.sensors.bottom = this.M.Bodies.rectangle(this.sx, this.h, this.sx, 5, { isSensor: true });
+                    this.playerController.sensors.left = this.M.Bodies.rectangle(this.sx - this.w * 0.45, this.sy, 5, this.h * 0.25, { isSensor: true });
+                    this.playerController.sensors.right = this.M.Bodies.rectangle(this.sx + this.w * 0.45, this.sy, 5, this.h * 0.25, { isSensor: true });
+                    this.compoundBody = this.M.Body.create({
+                        parts: [
+                            this.playerBody, this.playerController.sensors.bottom, this.playerController.sensors.left,
+                            this.playerController.sensors.right
+                        ],
+                        label: 'ship',
+                        friction: 0.05,
+                        restitution: 0.01 // Prevent body from sticking against a wall
+                    });
+                    this.compoundBody.label = 'ship';
+
+                    this.playerController.matterSprite
+                        .setExistingBody(this.compoundBody)
+                        .setFixedRotation()
+                        .setPosition(80, 450);
+
+                    
+                    //this.playerController.matterSprite.label = 'ship';
+
+                    this.cam = this.cameras.main;
+                    this.cam.setBounds(0, 0, this.map.widthInPixels, this.map.heightInPixels);
+                    smoothMoveCameraTowards(this.playerController.matterSprite, this.cam);
+
+                    this.anims.create({
+                        key: 'left',
+                        frames: this.anims.generateFrameNumbers('ship', { start: 12, end: 14 }),
+                        frameRate: 5,
+                        repeat: -1
+                    });
+                    this.anims.create({
+                        key: 'right',
+                        frames: this.anims.generateFrameNumbers('ship', { start: 8, end: 11 }),
+                        frameRate: 5,
+                        repeat: -1
+                    });
+                    this.anims.create({
+                        key: 'idle',
+                        frames: this.anims.generateFrameNumbers('ship', { start: 7, end: 7 }),
+                        frameRate: 18,
+                        repeat: -1
+                    });
+                    this.anims.create({
+                        key: 'launchIdle',
+                        frames: this.anims.generateFrameNumbers('ship', { start: 0, end: 3 }),
+                        frameRate: 18,
+                        repeat: -1
+                    });
+                    this.anims.create({
+                        key: 'throw',
+                        frames: this.anims.generateFrameNumbers('ship', { start: 3, end: 6 }),
+                        frameRate: 30,
+                        repeat: 0
+                    });
+                    
+
+                    // Before matter's update, reset the player's count of what surfaces it is touching.
+                    this.matter.world.on('beforeupdate', (function (event) {
+                        this.playerController.numTouching.left = 0;
+                        this.playerController.numTouching.right = 0;
+                        this.playerController.numTouching.bottom = 0;
+                    }).bind(this));
+
+                    // Loop over the active colliding pairs and count the surfaces the player is touching.
+                    this.matter.world.on('collisionactive', (function (event) {
+                        this.playerBody = this.playerController.body;
+                        this.left = this.playerController.sensors.left;
+                        this.right = this.playerController.sensors.right;
+                        this.bottom = this.playerController.sensors.bottom;
+
+                        for (this.i = 0; this.i < event.pairs.length; this.i++)
+                        {
+                            this.bodyA = event.pairs[this.i].bodyA;
+                            this.bodyB = event.pairs[this.i].bodyB;
+
+                            if (this.bodyA === this.playerBody || this.bodyB === this.playerBody)
+                            {
+                                continue;
+                            }
+                            else if (this.bodyA === this.bottom || this.bodyB === this.bottom)
+                            {
+                                // Standing on any surface counts (e.g. jumping off of a non-static crate).
+                                this.playerController.numTouching.bottom += 1;
+                            }
+                            else if ((this.bodyA === this.left && this.bodyB.isStatic) || (this.bodyB === this.left && this.bodyA.isStatic))
+                            {
+                                // Only static objects count since we don't want to be blocked by an object that we
+                                // can push around.
+                                this.playerController.numTouching.left += 1;
+                            }
+                            else if ((this.bodyA === this.right && this.bodyB.isStatic) || (this.bodyB === this.right && this.bodyA.isStatic))
+                            {
+                                this.playerController.numTouching.right += 1;
+                            }
+                        }
+                    }).bind(this));
+                    
+
+                    // Update over, so now we can determine if any direction is blocked
+                    this.matter.world.on('afterupdate', (function (event) {
+                        this.playerController.blocked.right = this.playerController.numTouching.right > 0 ? true : false;
+                        this.playerController.blocked.left = this.playerController.numTouching.left > 0 ? true : false;
+                        this.playerController.blocked.bottom = this.playerController.numTouching.bottom > 0 ? true : false;
+                        this.playerController.blocked.up = this.playerController.numTouching.up > 0 ? true : false;
+                    }).bind(this));
+
+                    this.speedText = this.add.text(32, 820, '', {
+                        fontSize: '64px',
+                        padding: { x: 20, y: 10 },
+                        fill: '#ffffff'
+                    });
+                    this.speedText.setScrollFactor(0);
+                    this.speedText.setAlpha(0)
+
+                    this.loop = this.time.addEvent({delay:1, callback: updateCounter, callbackScope: this, loop: true});
+
+                    this.input.on('pointerdown', pointer =>  {
+
+                        this.isDown = true;
+                        this.mouseX = pointer.worldX;
+                        this.mouseY = pointer.worldY;
+
+                    });
+
+                    this.input.on('pointermove', pointer =>  {
+
+                        this.mouseX = pointer.worldX;
+                        this.mouseY = pointer.worldY;
+
+                    });
+
+                    this.input.on('pointerup', pointer =>  {
+
+                        this.isDown = false;
+
+                    });
+
+                    this.bruh = this.matter.add.sprite(this.playerController.matterSprite.x, this.playerController.matterSprite.y, 'granny', 1, { restitution: 0.3, label: 'granny' });
+                    this.bruh.setPosition(-100, -100);
+                    this.reticle = this.add.image(this.mouseX, this.mouseY, 'bullet1');
+                    this.victoire = this.add.image(896,448, 'victoire');
+                    this.victoire.setAlpha(0);
+                    this.defaite = this.add.image(896,448, 'defaite');
+                    this.defaite.setAlpha(0);
+
+                    this.anims.create({
+                        key: 'memeIdle',
+                        frames: this.anims.generateFrameNumbers('granny', { start: 0, end: 3 }),
+                        frameRate: 18,
+                        repeat: -1
+                    });
+                    
+                }
+
+                update (time, delta) {
+
+                    
+                    this.matterSprite = this.playerController.matterSprite;
+
+                    if (!this.speedCalcul) {
+                        this.reticle.x = this.mouseX;
+                        this.reticle.y = this.mouseY;
+                    }
+
+                    if (this.isDown && !this.speedCalcul && (time - this.timeLaunch) > 200 && this.granny) {
+                        grannySpeed = 6000;
+                        this.speedCalcul = true;
+                        this.speedText.setAlpha(1);
+                        this.timeLaunch = time;
+                    }
+
+                    if (this.speedCalcul && this.granny) {
+                        this.speedText.setText('' + ((grannySpeed + 4000)/100));
+
+                        if (this.isDown && (time - this.timeLaunch) > 200) {
+                            this.stopAnim = true;
+                            this.bruh.speed = Phaser.Math.GetSpeed(grannySpeed, 1);
+                            this.bruh.setPosition(this.playerController.matterSprite.x+36, this.playerController.matterSprite.y-80);
+                            this.angle = Phaser.Math.Angle.Between(this.reticle.x, this.reticle.y, this.playerController.matterSprite.x, this.playerController.matterSprite.y);
+                            this.matterSprite.anims.play('throw', true);
+                            this.bruh.setVelocityX(-this.bruh.speed * Math.cos(this.angle));
+                            this.bruh.setVelocityY(-this.bruh.speed * Math.sin(this.angle));
+                            this.speedText.setAlpha(0);
+                            this.speedCalcul = false;
+                            this.granny = false;
+                            this.timeLaunch = time;
+                        }
+                    }
+
+                    if (this.spaceKey.isDown) {
+                        this.scene.start('Scene8');
+                    }
+
+                    if (this.victory) {
+                        level9Lock = true;
+                        if (this.cursors.up.isDown) {
+                            this.scene.start('Scene8');
+                        }
+                        else if (this.cursors.left.isDown) {
+                            this.scene.start('Level');
+                        }
+                        else if (this.cursors.right.isDown) {
+                            this.scene.start('Scene9');
+                        }
+                    }
+
+                    if (this.defeat) {
+                        if (this.cursors.up.isDown) {
+                            this.scene.start('Scene8');
+                        }
+                        else if (this.cursors.left.isDown) {
+                            this.scene.start('Level');
+                        }
+                    }
+
+                    if (!this.granny) {
+                        this.tile = this.map.getTileAt(this.map.worldToTileX(this.bruh.x), this.map.worldToTileY(this.bruh.y));
+                        if (this.tile != null) {
+                            if (!this.defeat && JSON.stringify(this.tile.properties) == '{"collides":false,"death":false,"end":true}') {
+                                this.victoire.setAlpha(1);
+                                this.victory = true;
+                            }
+                            if (!this.victory && JSON.stringify(this.tile.properties) == '{"collides":false,"death":true,"end":false}') {
+                                this.defaite.setAlpha(1);
+                                this.defeat = true;
+                            }
+                        }
+                        
+                        if ((this.bruh.x - this.matterSprite.x) < 80 && (this.bruh.y - this.matterSprite.y) < 120 && (this.bruh.x - this.matterSprite.x) > -80 && (this.bruh.y - this.matterSprite.y) > -120 && (time - this.timeLaunch) > 800 ) {
+                            this.bruh.setPosition(-200, 920);
+                            this.granny = true;
+                        }
+                    }
+
+                    this.tilePlayer = this.map.getTileAt(this.map.worldToTileX(this.matterSprite.x), this.map.worldToTileY(this.matterSprite.y));
+                    if (this.tilePlayer != null) {
+                        if (!this.victory && JSON.stringify(this.tilePlayer.properties) == '{"collides":false,"death":true,"end":false}') {
+                                this.defaite.setAlpha(1);
+                                this.defeat = true;
+                                if (this.cursors.up.isDown) {
+                                    this.scene.start('Scene8');
+                                }
+                                else if (this.cursors.left.isDown) {
+                                    this.scene.start('Level');
+                                }
+                            }
+                    }
+
+
+                    // Movement
+
+                    this.oldVelocityX;
+                    this.targetVelocityX;
+                    this.newVelocityX;
+
+                    if (this.cursors.left.isDown && !this.playerController.blocked.left && !this.granny && !this.defeat && !this.victory) {
+                        this.smoothedControls.moveLeft(delta);
+                        this.matterSprite.anims.play('left', true);
+                        this.matterSprite.friction = 0.01;
+
+                        // Lerp the velocity towards the max run using the smoothed controls. This simulates a
+                        // player controlled acceleration.
+                        this.oldVelocityX = this.matterSprite.body.velocity.x;
+                        this.targetVelocityX = -this.playerController.speed.run;
+                        this.newVelocityX = Phaser.Math.Linear(this.oldVelocityX, this.targetVelocityX, -this.smoothedControls.value);
+
+                        this.matterSprite.setVelocityX(this.newVelocityX);
+                    }
+                    else if (this.cursors.right.isDown && !this.playerController.blocked.right && !this.granny && !this.defeat && !this.victory)
+                    {
+                        this.smoothedControls.moveRight(delta);
+                        this.matterSprite.anims.play('right', true);
+                        this.matterSprite.friction = 0.01;
+
+                        // Lerp the velocity towards the max run using the smoothed controls. This simulates a
+                        // player controlled acceleration.
+                        this.oldVelocityX = this.matterSprite.body.velocity.x;
+                        this.targetVelocityX = this.playerController.speed.run;
+                        this.newVelocityX = Phaser.Math.Linear(this.oldVelocityX, this.targetVelocityX, this.smoothedControls.value);
+
+                        this.matterSprite.setVelocityX(this.newVelocityX);
+                    }
+                    else if (!this.stopAnim)
+                    {
+                        this.matterSprite.anims.play('launchIdle', true);
+                        this.smoothedControls.reset();
+                    }
+                    else if (this.stopAnim && (time - this.timeLaunch) > 200)
+                    {
+                        this.matterSprite.anims.play('idle', true);
+                        this.smoothedControls.reset();
+                    }
+
+                    this.bruh.anims.play('memeIdle', true);
+
+                    this.canJump = (time - this.playerController.lastJumpedAt) > 250;
+                    if (this.cursors.up.isDown && this.canJump && !this.granny && !this.defeat && !this.victory)
+                    {
+                        if (this.playerController.blocked.bottom)
+                        {
+                            this.matterSprite.setVelocityY(-this.playerController.speed.jump);
+                            this.playerController.lastJumpedAt = time;
+                        }
+                        else if (this.playerController.blocked.left)
+                        {
+                            // Jump up and away from the wall
+                            this.matterSprite.setVelocityY(-this.playerController.speed.jump);
+                            this.matterSprite.setVelocityX(this.playerController.speed.run);
+                            this.playerController.lastJumpedAt = time;
+                        }
+                        else if (this.playerController.blocked.right)
+                        {
+                            // Jump up and away from the wall
+                            this.matterSprite.setVelocityY(-this.playerController.speed.jump);
+                            this.matterSprite.setVelocityX(-this.playerController.speed.run);
+                            this.playerController.lastJumpedAt = time;
+                        }
+                    }
+                    
+                    this.reticle.setRotation((Phaser.Math.Angle.Between(this.mouseX, this.mouseY, this.matterSprite.x, this.matterSprite.y) - Math.PI / 2) -0.4);
+                    smoothMoveCameraTowards(this.matterSprite, this.cam, 0.9);
+                }
+            }
+
+            class Scene9 extends Phaser.Scene {
+                constructor(){
+                    super({key : "Scene9" });
+                }
+                preload () {
+                    this.load.spritesheet('ship', 'assets/sprites/dude.png', { frameWidth: 96, frameHeight: 160 });
+                    this.load.spritesheet('granny', 'assets/sprites/meme.png', { frameWidth: 38, frameHeight: 64 });
+                    this.load.image('bullet1', 'assets/sprites/bomb.png');
+                    this.load.tilemapTiledJSON('map9', 'assets/Level_9.json');
+                    this.load.image('Level_9', 'assets/Level_9.png');
                     this.load.image('stadium', 'assets/Stadium.png');
                     this.load.image('victoire', 'assets/sprites/Victoire.png');
                     this.load.image('defaite', 'assets/sprites/Defaite.png');
@@ -2707,8 +4321,8 @@
                         '           Ce texte est ilisible',
                     ]);
 
-                    this.map = this.make.tilemap({ key: 'map6' });
-                    this.tileset = this.map.addTilesetImage('Level_6');
+                    this.map = this.make.tilemap({ key: 'map9' });
+                    this.tileset = this.map.addTilesetImage('Level_9');
                     this.layer = this.map.createLayer('Layer_1', this.tileset, 0, 0);
 
                     // Set up the layer to have matter bodies. Any colliding tiles will be given a Matter body.
@@ -2953,25 +4567,25 @@
                     }
 
                     if (this.spaceKey.isDown) {
-                        this.scene.start('Scene6');
+                        this.scene.start('Scene9');
                     }
 
                     if (this.victory) {
-                        level7Lock = true;
+                        level10Lock = true;
                         if (this.cursors.up.isDown) {
-                            this.scene.start('Scene6');
+                            this.scene.start('Scene9');
                         }
                         else if (this.cursors.left.isDown) {
                             this.scene.start('Level');
                         }
                         else if (this.cursors.right.isDown) {
-                            this.scene.start('Scene7');
+                            this.scene.start('Level');
                         }
                     }
 
                     if (this.defeat) {
                         if (this.cursors.up.isDown) {
-                            this.scene.start('Scene6');
+                            this.scene.start('Scene9');
                         }
                         else if (this.cursors.left.isDown) {
                             this.scene.start('Level');
@@ -3003,7 +4617,7 @@
                                 this.defaite.setAlpha(1);
                                 this.defeat = true;
                                 if (this.cursors.up.isDown) {
-                                    this.scene.start('Scene6');
+                                    this.scene.start('Scene9');
                                 }
                                 else if (this.cursors.left.isDown) {
                                     this.scene.start('Level');
@@ -3103,7 +4717,7 @@
                 },
                 backgroundColor: '#2d2d2d',
                 parent: 'phaser-example',
-                scene: [ Menu, Level, Scene1, Scene2, Scene3, Scene4, Scene5, Scene6 ]
+                scene: [ Menu, Level, Scene1, Scene2, Scene3, Scene4, Scene5, Scene6, Scene7, Scene8, Scene9 ]
             };
             var level2Lock = false;
             var level3Lock = false;
